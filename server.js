@@ -20,13 +20,15 @@ function getMessageText(messageItems) {
 }
 
 // ==========================
-// ПОДКЛЮЧЕНИЕ К ЛАЙВУ (ПЕРЕМЕЩЕНО ВВЕРХ)
+// ПОДКЛЮЧЕНИЕ К ЛАЙВУ
 // ==========================
-const connectToLive = (videoId) => {
+function connectToLive(videoId) {
   if (chat) {
     try {
       chat.stop();
-    } catch (e) {}
+    } catch (e) {
+      console.error("Error stopping chat:", e);
+    }
   }
 
   messages = [];
@@ -47,8 +49,19 @@ const connectToLive = (videoId) => {
     if (messages.length > 200) messages.shift();
   });
 
+  // Добавляем обработку ошибок
+  chat.on("error", (err) => {
+    console.error("Chat error:", err);
+  });
+
+  chat.on("end", (reason) => {
+    console.log("Chat ended:", reason);
+    chat = null;
+  });
+
   chat.start();
-};
+  console.log(`Connected to live chat: ${videoId}`);
+}
 
 // ==========================
 // API: CONNECT
@@ -78,12 +91,33 @@ app.get("/chat", (req, res) => {
 });
 
 // ==========================
+// API: DISCONNECT (опционально)
+// ==========================
+app.post("/disconnect", (req, res) => {
+  if (chat) {
+    try {
+      chat.stop();
+      chat = null;
+      messages = [];
+      res.json({ status: "disconnected" });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  } else {
+    res.json({ status: "not connected" });
+  }
+});
+
+// ==========================
 // PAGE
 // ==========================
 app.get("/", (req, res) => {
   res.sendFile(__dirname + "/index.html");
 });
 
+// ==========================
+// START SERVER
+// ==========================
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {

@@ -1,129 +1,267 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <title>YouTube Live Chat HUD</title>
-
-  <style>
-    body {
-      background: #0a0a0a;
-      color: #00ff88;
-      font-family: monospace;
-      padding: 20px;
-    }
-
-    input {
-      padding: 10px;
-      width: 300px;
-      background: #111;
-      color: #0f0;
-      border: 1px solid #333;
-    }
-
-    button {
-      padding: 10px;
-      background: #00ff88;
-      border: none;
-      cursor: pointer;
-      margin-left: 10px;
-    }
-
-    .chat {
-      margin-top: 20px;
-      max-width: 700px;
-    }
-
-    .msg {
-      border-bottom: 1px solid #111;
-      padding: 5px 0;
-    }
-
-    .author {
-      color: white;
-      font-weight: bold;
-    }
-
-    .time {
-      color: #555;
-      font-size: 12px;
-      margin-left: 10px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Live Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #ff0000;
+            margin-top: 0;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            background-color: #ff0000;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        button:hover {
+            background-color: #cc0000;
+        }
+        
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        .chat-box {
+            height: 500px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            background-color: #fafafa;
+        }
+        
+        .message {
+            margin: 10px 0;
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .message:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .author {
+            font-weight: bold;
+            color: #ff0000;
+            margin-right: 10px;
+        }
+        
+        .time {
+            font-size: 12px;
+            color: #999;
+            float: right;
+        }
+        
+        .text {
+            margin-top: 5px;
+            word-wrap: break-word;
+        }
+        
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+    </style>
 </head>
-
 <body>
+    <div class="container">
+        <h1>📺 YouTube Live Chat Viewer</h1>
+        
+        <div class="input-group">
+            <input type="text" id="videoId" placeholder="YouTube Video ID (например: dQw4w9WgXcQ)" />
+            <button onclick="connect()">Подключиться</button>
+            <button onclick="disconnect()" id="disconnectBtn" disabled>Отключиться</button>
+        </div>
+        
+        <div id="status" class="status disconnected">Не подключен</div>
+        
+        <div class="chat-box" id="chat">
+            <div style="text-align: center; color: #999; padding: 20px;">
+                Введите ID видео и нажмите "Подключиться"
+            </div>
+        </div>
+    </div>
 
-<h2>🎥 YouTube Live Chat HUD</h2>
-
-<input id="videoId" placeholder="Enter Live Video ID">
-<button onclick="connect()">Connect</button>
-
-<div id="chat" class="chat"></div>
-
-<script>
-const chatBox = document.getElementById("chat");
-
-let interval = null;
-
-// =====================
-// CONNECT
-// =====================
-async function connect() {
-  const videoId = document.getElementById("videoId").value;
-
-  await fetch("/connect", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ videoId })
-  });
-
-  startPolling();
-}
-
-// =====================
-// LOAD CHAT
-// =====================
-async function loadChat() {
-  try {
-    const res = await fetch("/chat", {
-      cache: "no-store"
-    });
-
-    const text = await res.text();
-    const data = JSON.parse(text);
-
-    chatBox.innerHTML = "";
-
-    data.messages.reverse().forEach(msg => {
-      const div = document.createElement("div");
-      div.className = "msg";
-
-      div.innerHTML = `
-        <span class="author">${msg.author}</span>
-        <span class="time">${msg.time}</span><br/>
-        ${msg.text}
-      `;
-
-      chatBox.appendChild(div);
-    });
-
-  } catch (e) {
-    console.error("LOAD ERROR:", e);
-  }
-}
-
-// =====================
-// POLLING
-// =====================
-function startPolling() {
-  if (interval) clearInterval(interval);
-
-  loadChat();
-  interval = setInterval(loadChat, 2000);
-}
-</script>
-
+    <script>
+        let pollingInterval = null;
+        
+        async function connect() {
+            const videoId = document.getElementById('videoId').value.trim();
+            
+            if (!videoId) {
+                alert('Пожалуйста, введите Video ID');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/connect', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ videoId })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Connected:', data);
+                    
+                    // Обновляем UI
+                    document.getElementById('status').className = 'status connected';
+                    document.getElementById('status').innerHTML = `✅ Подключен к видео: ${videoId}`;
+                    document.getElementById('disconnectBtn').disabled = false;
+                    document.getElementById('connectBtn').disabled = true;
+                    
+                    // Очищаем чат
+                    document.getElementById('chat').innerHTML = '';
+                    
+                    // Запускаем получение сообщений
+                    startPolling();
+                } else {
+                    alert('Ошибка подключения');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Ошибка подключения к серверу');
+            }
+        }
+        
+        async function disconnect() {
+            try {
+                const response = await fetch('/disconnect', {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    // Обновляем UI
+                    document.getElementById('status').className = 'status disconnected';
+                    document.getElementById('status').innerHTML = '❌ Не подключен';
+                    document.getElementById('disconnectBtn').disabled = true;
+                    
+                    // Останавливаем получение сообщений
+                    if (pollingInterval) {
+                        clearInterval(pollingInterval);
+                        pollingInterval = null;
+                    }
+                    
+                    // Очищаем чат
+                    document.getElementById('chat').innerHTML = '<div style="text-align: center; color: #999; padding: 20px;">Чат отключен</div>';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        
+        function startPolling() {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+            }
+            
+            pollingInterval = setInterval(async () => {
+                try {
+                    const response = await fetch('/chat');
+                    const data = await response.json();
+                    
+                    if (data.messages && data.messages.length > 0) {
+                        updateChat(data.messages);
+                    }
+                } catch (error) {
+                    console.error('Error fetching messages:', error);
+                }
+            }, 2000); // Обновляем каждые 2 секунды
+        }
+        
+        function updateChat(messages) {
+            const chatDiv = document.getElementById('chat');
+            
+            if (messages.length === 0) {
+                if (chatDiv.children.length === 0) {
+                    chatDiv.innerHTML = '<div style="text-align: center; color: #999; padding: 20px;">Сообщений пока нет...</div>';
+                }
+                return;
+            }
+            
+            // Очищаем чат
+            chatDiv.innerHTML = '';
+            
+            // Добавляем все сообщения
+            messages.forEach(msg => {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message';
+                messageDiv.innerHTML = `
+                    <span class="time">${msg.time}</span>
+                    <span class="author">${escapeHtml(msg.author)}:</span>
+                    <div class="text">${escapeHtml(msg.text)}</div>
+                `;
+                chatDiv.appendChild(messageDiv);
+            });
+            
+            // Прокручиваем вниз
+            chatDiv.scrollTop = chatDiv.scrollHeight;
+        }
+        
+        // Функция для защиты от XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Добавляем обработчик Enter в поле ввода
+        document.getElementById('videoId').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                connect();
+            }
+        });
+    </script>
 </body>
 </html>
