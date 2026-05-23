@@ -1,38 +1,17 @@
 const express = require("express");
-const path = require("path");
 const { LiveChat } = require("youtube-chat");
 
 const app = express();
 
 app.use(express.json());
 
-const PORT = process.env.PORT || 3000;
-
-// =====================
-// STATE
-// =====================
 let chat = null;
 let messages = [];
 
-// =====================
-// PARSER
-// =====================
-function getMessageText(items) {
-  if (!items) return "";
-
-  if (typeof items === "string") return items;
-
-  if (Array.isArray(items)) {
-    return items.map(p => p.text || p.emojiText || "").join("");
-  }
-
-  return String(items);
-}
-
-// =====================
-// CONNECT TO YOUTUBE
-// =====================
-function connect(videoId) {
+// ==========================
+// ПОДКЛЮЧЕНИЕ К ЛАЙВУ
+// ==========================
+function connectToLive(videoId) {
   if (chat) {
     try {
       chat.stop();
@@ -46,29 +25,34 @@ function connect(videoId) {
   });
 
   chat.on("chat", (item) => {
-    const msg = {
-      author: item.author?.name || "unknown",
-      text: getMessageText(item.message),
+    const text = getMessageText(item.message);
+
+    messages.push({
+      author: item.author.name,
+      text,
       time: new Date().toLocaleTimeString()
-    };
+    });
 
-    messages.push(msg);
-
-    if (messages.length > 200) {
-      messages.shift();
-    }
-
-    console.log(`[${msg.time}] ${msg.author}: ${msg.text}`);
+    if (messages.length > 200) messages.shift();
   });
 
   chat.start();
 }
 
-// =====================
-// API
-// =====================
+// ==========================
+// FIX MESSAGE PARSER
+// ==========================
+function getMessageText(messageItems) {
+  if (!messageItems) return "";
 
-// подключение
+  return messageItems
+    .map(p => p.text || p.emojiText || "")
+    .join("");
+}
+
+// ==========================
+// API: CONNECT
+// ==========================
 app.post("/connect", (req, res) => {
   const { videoId } = req.body;
 
@@ -76,26 +60,34 @@ app.post("/connect", (req, res) => {
     return res.status(400).json({ error: "videoId required" });
   }
 
-  connect(videoId);
+  connectToLive(videoId);
 
-  res.json({ ok: true, videoId });
+  res.json({
+    status: "connected",
+    videoId
+  });
 });
 
-// чат
+// ==========================
+// API: CHAT
+// ==========================
 app.get("/chat", (req, res) => {
-  res.setHeader("Cache-Control", "no-store");
-
   res.json({
     messages: messages.slice(-50)
   });
 });
 
-// frontend
+// ==========================
+// PAGE
+// ==========================
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
+  res.sendFile(__dirname + "/index.html");
 });
 
-// =====================
+// ==========================
+
+const PORT = process.env.PORT || 3000;
+
 app.listen(PORT, () => {
-  console.log("🚀 Server running on port", PORT);
+  console.log("Server running on port", PORT);
 });
