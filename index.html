@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>читаем Дашин чатик, и раздаем громадные призы</title>
+  <title>YouTube Live Chat HUD</title>
 
   <style>
     body {
@@ -40,15 +40,22 @@
 
     .author {
       color: white;
+      font-weight: bold;
+    }
+
+    .time {
+      color: #555;
+      font-size: 12px;
+      margin-left: 10px;
     }
   </style>
 </head>
 
 <body>
 
-<h2>🎥 YouTube Live Connector</h2>
+<h2>🎥 YouTube Live Chat HUD</h2>
 
-<input id="videoId" placeholder="Enter YouTube Live ID">
+<input id="videoId" placeholder="Enter Live Video ID">
 <button onclick="connect()">Connect</button>
 
 <div id="chat" class="chat"></div>
@@ -56,39 +63,60 @@
 <script>
 const chatBox = document.getElementById("chat");
 
+let interval = null;
+
+// =====================
+// CONNECT
+// =====================
 async function connect() {
   const videoId = document.getElementById("videoId").value;
 
   await fetch("/connect", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json"
+    },
     body: JSON.stringify({ videoId })
   });
 
   startPolling();
 }
 
+// =====================
+// LOAD CHAT
+// =====================
 async function loadChat() {
-  const res = await fetch("/chat");
-  const data = await res.json();
+  try {
+    const res = await fetch("/chat", {
+      cache: "no-store"
+    });
 
-  chatBox.innerHTML = "";
+    const text = await res.text();
+    const data = JSON.parse(text);
 
-  data.messages.reverse().forEach(msg => {
-    const div = document.createElement("div");
-    div.className = "msg";
+    chatBox.innerHTML = "";
 
-    div.innerHTML = `
-      <span class="author">${msg.author}</span><br/>
-      ${msg.text}
-    `;
+    data.messages.reverse().forEach(msg => {
+      const div = document.createElement("div");
+      div.className = "msg";
 
-    chatBox.appendChild(div);
-  });
+      div.innerHTML = `
+        <span class="author">${msg.author}</span>
+        <span class="time">${msg.time}</span><br/>
+        ${msg.text}
+      `;
+
+      chatBox.appendChild(div);
+    });
+
+  } catch (e) {
+    console.error("LOAD ERROR:", e);
+  }
 }
 
-let interval = null;
-
+// =====================
+// POLLING
+// =====================
 function startPolling() {
   if (interval) clearInterval(interval);
 

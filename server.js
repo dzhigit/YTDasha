@@ -6,134 +6,96 @@ const app = express();
 
 app.use(express.json());
 
-// ========================================
-// CONFIG
-// ========================================
-
 const PORT = process.env.PORT || 3000;
 
-// ========================================
+// =====================
 // STATE
-// ========================================
-
+// =====================
 let chat = null;
 let messages = [];
 
-// ========================================
-// MESSAGE PARSER
-// ========================================
+// =====================
+// PARSER
+// =====================
+function getMessageText(items) {
+  if (!items) return "";
 
-function getMessageText(messageItems) {
-  if (!messageItems) return "";
+  if (typeof items === "string") return items;
 
-  // если уже строка
-  if (typeof messageItems === "string") {
-    return messageItems;
+  if (Array.isArray(items)) {
+    return items.map(p => p.text || p.emojiText || "").join("");
   }
 
-  // если массив частей
-  if (Array.isArray(messageItems)) {
-    return messageItems
-      .map(part => part.text || part.emojiText || "")
-      .join("");
-  }
-
-  return String(messageItems);
+  return String(items);
 }
 
-// ========================================
-// CONNECT TO YOUTUBE LIVE
-// ========================================
-
-async function loadChat() {
-  try {
-    const res = await fetch("/chat", {
-      cache: "no-store"
-    });
-
-    const text = await res.text();
-
-    console.log("RAW RESPONSE:", text);
-
-    const data = JSON.parse(text);
-
-    chatBox.innerHTML = "";
-
-    data.messages.reverse().forEach(msg => {
-      const div = document.createElement("div");
-      div.className = "msg";
-
-      div.innerHTML = `
-        <span class="author">${msg.author}</span><br/>
-        ${msg.text}
-      `;
-
-      chatBox.appendChild(div);
-    });
-
-  } catch (err) {
-    console.error("CHAT LOAD ERROR:", err);
+// =====================
+// CONNECT TO YOUTUBE
+// =====================
+function connect(videoId) {
+  if (chat) {
+    try {
+      chat.stop();
+    } catch (e) {}
   }
-}
 
-// ========================================
-// API
-// ========================================
+  messages = [];
 
-// health check
-app.get("/health", (req, res) => {
-  res.json({
-    ok: true,
-    messages: messages.length
+  chat = new LiveChat({
+    liveId: videoId
   });
+
+  chat.on("chat", (item) => {
+    const msg = {
+      author: item.author?.name || "unknown",
+      text: getMessageText(item.message),
+      time: new Date().toLocaleTimeString()
+    };
+
+    messages.push(msg);
+
+    if (messages.length > 200) {
+      messages.shift();
+    }
+
+    console.log(`[${msg.time}] ${msg.author}: ${msg.text}`);
+  });
+
+  chat.start();
+}
+
+// =====================
+// API
+// =====================
+
+// подключение
+app.post("/connect", (req, res) => {
+  const { videoId } = req.body;
+
+  if (!videoId) {
+    return res.status(400).json({ error: "videoId required" });
+  }
+
+  connect(videoId);
+
+  res.json({ ok: true, videoId });
 });
 
-// получить чат
+// чат
 app.get("/chat", (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+
   res.json({
     messages: messages.slice(-50)
   });
 });
 
-// подключение к лайву
-app.post("/connect", async (req, res) => {
-  try {
-    const { videoId } = req.body;
-
-    if (!videoId) {
-      return res.status(400).json({
-        error: "videoId required"
-      });
-    }
-
-    await connectToLive(videoId);
-
-    res.json({
-      ok: true,
-      videoId
-    });
-
-  } catch (err) {
-    console.error(err);
-
-    res.status(500).json({
-      error: err.message
-    });
-  }
-});
-
-// ========================================
-// FRONTEND
-// ========================================
-
+// frontend
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
-// ========================================
-// START
-// ========================================
-
+// =====================
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log("🚀 Server running on port", PORT);
 });
