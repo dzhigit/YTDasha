@@ -45,59 +45,34 @@ function getMessageText(messageItems) {
 // CONNECT TO YOUTUBE LIVE
 // ========================================
 
-async function connectToLive(videoId) {
+async function loadChat() {
   try {
-    // остановить старый чат
-    if (chat) {
-      try {
-        chat.stop();
-      } catch (e) {
-        console.log("Old chat stop error:", e.message);
-      }
-    }
-
-    messages = [];
-
-    console.log("Connecting to live:", videoId);
-
-    // youtube-chat@2.2.0
-    chat = new LiveChat({
-      liveId: videoId
+    const res = await fetch("/chat", {
+      cache: "no-store"
     });
 
-    chat.on("start", () => {
-      console.log("✅ Chat started");
+    const text = await res.text();
+
+    console.log("RAW RESPONSE:", text);
+
+    const data = JSON.parse(text);
+
+    chatBox.innerHTML = "";
+
+    data.messages.reverse().forEach(msg => {
+      const div = document.createElement("div");
+      div.className = "msg";
+
+      div.innerHTML = `
+        <span class="author">${msg.author}</span><br/>
+        ${msg.text}
+      `;
+
+      chatBox.appendChild(div);
     });
-
-    chat.on("chat", (item) => {
-      const msg = {
-        author: item.author?.name || "Unknown",
-        text: getMessageText(item.message),
-        time: new Date().toLocaleTimeString()
-      };
-
-      messages.push(msg);
-
-      // memory limit
-      if (messages.length > 200) {
-        messages.shift();
-      }
-
-      console.log(`[${msg.time}] ${msg.author}: ${msg.text}`);
-    });
-
-    chat.on("end", () => {
-      console.log("⚠️ Chat ended");
-    });
-
-    chat.on("error", (err) => {
-      console.error("❌ Chat error:", err);
-    });
-
-    await chat.start();
 
   } catch (err) {
-    console.error("Connect error:", err);
+    console.error("CHAT LOAD ERROR:", err);
   }
 }
 
