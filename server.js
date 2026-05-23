@@ -9,7 +9,18 @@ let chat = null;
 let messages = [];
 
 // ==========================
-// ПОДКЛЮЧЕНИЕ К ЛАЙВУ
+// FIX MESSAGE PARSER
+// ==========================
+function getMessageText(messageItems) {
+  if (!messageItems) return "";
+
+  return messageItems
+    .map(p => p.text || p.emojiText || "")
+    .join("");
+}
+
+// ==========================
+// ПОДКЛЮЧЕНИЕ К ЛАЙВУ (ПЕРЕМЕЩЕНО ВВЕРХ)
 // ==========================
 function connectToLive(videoId) {
   if (chat) {
@@ -37,17 +48,6 @@ function connectToLive(videoId) {
   });
 
   chat.start();
-}
-
-// ==========================
-// FIX MESSAGE PARSER
-// ==========================
-function getMessageText(messageItems) {
-  if (!messageItems) return "";
-
-  return messageItems
-    .map(p => p.text || p.emojiText || "")
-    .join("");
 }
 
 // ==========================
@@ -83,9 +83,6 @@ app.get("/chat", (req, res) => {
 app.get("/", (req, res) => {
   res.sendFile(__dirname + "/index.html");
 });
-
-// ==========================
-
 
 const PORT = process.env.PORT || 3000;
 
