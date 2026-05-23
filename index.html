@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>YouTube Live HUD</title>
+
+  <style>
+    body {
+      background: #0a0a0a;
+      color: #00ff88;
+      font-family: monospace;
+      padding: 20px;
+    }
+
+    input {
+      padding: 10px;
+      width: 300px;
+      background: #111;
+      color: #0f0;
+      border: 1px solid #333;
+    }
+
+    button {
+      padding: 10px;
+      background: #00ff88;
+      border: none;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+
+    .chat {
+      margin-top: 20px;
+      max-width: 700px;
+    }
+
+    .msg {
+      border-bottom: 1px solid #111;
+      padding: 5px 0;
+    }
+
+    .author {
+      color: white;
+    }
+  </style>
+</head>
+
+<body>
+
+<h2>🎥 YouTube Live Connector</h2>
+
+<input id="videoId" placeholder="Enter YouTube Live ID">
+<button onclick="connect()">Connect</button>
+
+<div id="chat" class="chat"></div>
+
+<script>
+const chatBox = document.getElementById("chat");
+
+async function connect() {
+  const videoId = document.getElementById("videoId").value;
+
+  await fetch("/connect", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ videoId })
+  });
+
+  startPolling();
+}
+
+async function loadChat() {
+  const res = await fetch("/chat");
+  const data = await res.json();
+
+  chatBox.innerHTML = "";
+
+  data.messages.reverse().forEach(msg => {
+    const div = document.createElement("div");
+    div.className = "msg";
+
+    div.innerHTML = `
+      <span class="author">${msg.author}</span><br/>
+      ${msg.text}
+    `;
+
+    chatBox.appendChild(div);
+  });
+}
+
+let interval = null;
+
+function startPolling() {
+  if (interval) clearInterval(interval);
+
+  loadChat();
+  interval = setInterval(loadChat, 2000);
+}
+</script>
+
+</body>
+</html>
