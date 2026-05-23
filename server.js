@@ -22,7 +22,7 @@ function getMessageText(messageItems) {
 // ==========================
 // ПОДКЛЮЧЕНИЕ К ЛАЙВУ (ПЕРЕМЕЩЕНО ВВЕРХ)
 // ==========================
-function connectToLive(videoId) {
+const connectToLive = (videoId) => {
   if (chat) {
     try {
       chat.stop();
@@ -48,7 +48,7 @@ function connectToLive(videoId) {
   });
 
   chat.start();
-}
+};
 
 // ==========================
 // API: CONNECT
