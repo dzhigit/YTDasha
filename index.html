@@ -118,7 +118,7 @@
         
         <div class="input-group">
             <input type="text" id="videoId" placeholder="YouTube Video ID (например: dQw4w9WgXcQ)" />
-            <button onclick="connect()">Подключиться</button>
+            <button onclick="connect()" id="connectBtn">Подключиться</button>
             <button onclick="disconnect()" id="disconnectBtn" disabled>Отключиться</button>
         </div>
         
@@ -142,6 +142,12 @@
                 return;
             }
             
+            // Получаем ссылки на элементы
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            const statusDiv = document.getElementById('status');
+            const chatDiv = document.getElementById('chat');
+            
             try {
                 const response = await fetch('/connect', {
                     method: 'POST',
@@ -156,13 +162,13 @@
                     console.log('Connected:', data);
                     
                     // Обновляем UI
-                    document.getElementById('status').className = 'status connected';
-                    document.getElementById('status').innerHTML = `✅ Подключен к видео: ${videoId}`;
-                    document.getElementById('disconnectBtn').disabled = false;
-                    document.getElementById('connectBtn').disabled = true;
+                    statusDiv.className = 'status connected';
+                    statusDiv.innerHTML = `✅ Подключен к видео: ${videoId}`;
+                    disconnectBtn.disabled = false;
+                    connectBtn.disabled = true;
                     
                     // Очищаем чат
-                    document.getElementById('chat').innerHTML = '';
+                    chatDiv.innerHTML = '';
                     
                     // Запускаем получение сообщений
                     startPolling();
@@ -176,6 +182,11 @@
         }
         
         async function disconnect() {
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            const statusDiv = document.getElementById('status');
+            const chatDiv = document.getElementById('chat');
+            
             try {
                 const response = await fetch('/disconnect', {
                     method: 'POST'
@@ -183,9 +194,10 @@
                 
                 if (response.ok) {
                     // Обновляем UI
-                    document.getElementById('status').className = 'status disconnected';
-                    document.getElementById('status').innerHTML = '❌ Не подключен';
-                    document.getElementById('disconnectBtn').disabled = true;
+                    statusDiv.className = 'status disconnected';
+                    statusDiv.innerHTML = '❌ Не подключен';
+                    disconnectBtn.disabled = true;
+                    connectBtn.disabled = false;
                     
                     // Останавливаем получение сообщений
                     if (pollingInterval) {
@@ -194,7 +206,7 @@
                     }
                     
                     // Очищаем чат
-                    document.getElementById('chat').innerHTML = '<div style="text-align: center; color: #999; padding: 20px;">Чат отключен</div>';
+                    chatDiv.innerHTML = '<div style="text-align: center; color: #999; padding: 20px;">Чат отключен</div>';
                 }
             } catch (error) {
                 console.error('Error:', error);
@@ -238,7 +250,7 @@
                 const messageDiv = document.createElement('div');
                 messageDiv.className = 'message';
                 messageDiv.innerHTML = `
-                    <span class="time">${msg.time}</span>
+                    <span class="time">${escapeHtml(msg.time)}</span>
                     <span class="author">${escapeHtml(msg.author)}:</span>
                     <div class="text">${escapeHtml(msg.text)}</div>
                 `;
@@ -261,6 +273,11 @@
             if (e.key === 'Enter') {
                 connect();
             }
+        });
+        
+        // Проверяем, что все элементы загружены
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Page loaded, all elements ready');
         });
     </script>
 </body>
